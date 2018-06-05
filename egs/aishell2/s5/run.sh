@@ -11,10 +11,11 @@
 
 # modify this to your AISHELL-2 corpus data path
 # e.g /disk10/data/AISHELL-2/iOS/data
-corpus=
+corpus=corpora/AISHELL2/iOS/data
 
 nj=20
 stage=1
+gmm_stage=0
 
 . ./cmd.sh
 . ./path.sh
@@ -31,7 +32,7 @@ fi
 
 # GMM
 if [ $stage -le 2 ]; then
-	local/run_gmm.sh --nj $nj
+	local/run_gmm.sh --nj $nj --stage $gmm_stage
 fi
 
 # xent
