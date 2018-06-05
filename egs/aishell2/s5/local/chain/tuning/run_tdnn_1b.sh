@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# This script is based on run_tdnn_7h.sh in swbd chain recipe.
+# _1b is as _1a, but with online pitch features used throughout training
 
-set -e
+set -euxo pipefail
 
 # configs for 'chain'
 affix=
 stage=10
 train_stage=-10
 get_egs_stage=-10
-dir=exp/chain/tdnn_1a  # Note: _sp will get added to this
+dir=exp/chain/tdnn_1b  # Note: _sp will get added to this
 decode_iter=
 
 # training options
@@ -42,9 +42,6 @@ where "nvcc" is installed.
 EOF
 fi
 
-# we use 40-dim high-resolution mfcc features (w/o pitch and ivector) for nn training
-# no utt- and spk- level cmvn
-
 dir=${dir}${affix:+_$affix}_sp
 train_set=train
 test_sets="dev test"
@@ -53,11 +50,12 @@ treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
 if [ $stage -le 6 ]; then
-  mfccdir=mfcc_hires
+  mfccdir=exp/mfcc_hires
   for datadir in ${train_set} ${test_sets}; do
   	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
-	utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
-	steps/make_mfcc.sh --mfcc-config conf/mfcc_hires.conf --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
+	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
+	  steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+      --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
   done
 fi
 
@@ -93,6 +91,7 @@ fi
 
 if [ $stage -le 10 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
+  feat_dim=$(feat-to-dim scp:data/${train_set}_hires/feats.scp -)
   num_targets=$(tree-info $treedir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
   opts="l2-regularize=0.002"
@@ -101,7 +100,7 @@ if [ $stage -le 10 ]; then
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=40 name=input
+  input dim=$feat_dim name=input
 
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable

@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# This script is based on run_tdnn_7h.sh in swbd chain recipe.
+# _1d is as _1c, but with dropout schedule added, referenced from wsj
 
-set -e
+set -euxo pipefail
 
 # configs for 'chain'
 affix=
 stage=10
 train_stage=-10
 get_egs_stage=-10
-dir=exp/chain/tdnn_1a  # Note: _sp will get added to this
+dir=exp/chain/tdnn_1d  # Note: _sp will get added to this
 decode_iter=
 
 # training options
@@ -20,8 +20,9 @@ max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=2
 num_jobs_final=4
-nj=10
+nj=15
 minibatch_size=128
+dropout_schedule='0,0@0.20,0.3@0.50,0'
 frames_per_eg=150,110,90
 remove_egs=true
 common_egs_dir=
@@ -42,9 +43,6 @@ where "nvcc" is installed.
 EOF
 fi
 
-# we use 40-dim high-resolution mfcc features (w/o pitch and ivector) for nn training
-# no utt- and spk- level cmvn
-
 dir=${dir}${affix:+_$affix}_sp
 train_set=train
 test_sets="dev test"
@@ -52,13 +50,57 @@ ali_dir=exp/tri3_ali
 treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
-if [ $stage -le 6 ]; then
-  mfccdir=mfcc_hires
+if [ $stage -le 5 ]; then
+  mfccdir=exp/mfcc_hires
   for datadir in ${train_set} ${test_sets}; do
   	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
-	utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
-	steps/make_mfcc.sh --mfcc-config conf/mfcc_hires.conf --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
+	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
+	  steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+      --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
   done
+fi
+
+# extract ivector from unified data using the trained
+if [ $stage -le 6 ]; then
+  echo "$0: computing a subset of data to train the diagonal UBM."
+  # We'll use about a quarter of the data.
+  mkdir -p exp/chain/diag_ubm_${affix}
+  temp_data_root=exp/chain/diag_ubm_${affix}
+
+  num_utts_total=$(wc -l < data/${datadir}_hires/utt2spk)
+  num_utts=$[$num_utts_total/4]
+  utils/data/subset_data_dir.sh data/${datadir}_hires \
+    $num_utts ${temp_data_root}/${train_set}_subset
+
+  echo "$0: get cmvn stats if not there for subset"
+  [ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
+    steps/compute_cmvn_stats.sh ${temp_data_root}/${train_set}_subset || exit 1;
+
+  echo "$0: computing a PCA transform from the hires data."
+  steps/online/nnet2/get_pca_transform.sh --cmd "$train_cmd" \
+    --splice-opts "--left-context=3 --right-context=3" \
+    --max-utts 10000 --subsample 2 \
+    ${temp_data_root}/${train_set}_subset \
+    exp/chain/pca_transform_${affix}
+  
+  echo "$0: training the diagonal UBM."
+  # Use 512 Gaussians in the UBM.
+  steps/online/nnet2/train_diag_ubm.sh --cmd "$train_cmd" --nj $nj \
+    --num-frames 700000 \
+    --num-threads 8 \
+    ${temp_data_root}/${train_set}_subset 512 \
+    exp/chain/pca_transform_${affix} exp/chain/diag_ubm_${affix}
+  
+  echo "$0: training the iVector extractor"
+  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj $nj \
+    data/${datadir}_hires exp/chain/diag_ubm_${affix} \
+    exp/chain/extractor_${affix} || exit 1;
+
+  steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires data/${datadir}_hires_max2
+  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
+    data/${datadir}_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${train_set}_${affix} || exit 1;
+  
+  exit 0;
 fi
 
 if [ $stage -le 7 ]; then
@@ -93,6 +135,7 @@ fi
 
 if [ $stage -le 10 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
+  feat_dim=$(feat-to-dim scp:data/${train_set}_hires/feats.scp -)
   num_targets=$(tree-info $treedir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
   opts="l2-regularize=0.002"
@@ -101,35 +144,36 @@ if [ $stage -le 10 ]; then
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=40 name=input
+  input dim=100 name=ivector
+  input dim=$feat_dim name=input
 
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable
   # the use of short notation for the descriptor
-  fixed-affine-layer name=lda input=Append(-2,-1,0,1,2) affine-transform-file=$dir/configs/lda.mat
+  fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
 
   # the first splicing is moved before the lda layer, so no splicing here
-  relu-batchnorm-layer name=tdnn1 $opts dim=1280
+  relu-batchnorm-dropout-layer name=tdnn1 $opts dim=1280
   linear-component name=tdnn2l dim=256 $linear_opts input=Append(-1,0)
-  relu-batchnorm-layer name=tdnn2 $opts input=Append(0,1) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn2 $opts input=Append(0,1) dim=1280
   linear-component name=tdnn3l dim=256 $linear_opts
-  relu-batchnorm-layer name=tdnn3 $opts dim=1280
+  relu-batchnorm-dropout-layer name=tdnn3 $opts dim=1280
   linear-component name=tdnn4l dim=256 $linear_opts input=Append(-1,0)
-  relu-batchnorm-layer name=tdnn4 $opts input=Append(0,1) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn4 $opts input=Append(0,1) dim=1280
   linear-component name=tdnn5l dim=256 $linear_opts
-  relu-batchnorm-layer name=tdnn5 $opts dim=1280 input=Append(tdnn5l, tdnn3l)
+  relu-batchnorm-dropout-layer name=tdnn5 $opts dim=1280 input=Append(tdnn5l, tdnn3l)
   linear-component name=tdnn6l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn6 $opts input=Append(0,3) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn6 $opts input=Append(0,3) dim=1280
   linear-component name=tdnn7l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn7 $opts input=Append(0,3,tdnn6l,tdnn4l,tdnn2l) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn7 $opts input=Append(0,3,tdnn6l,tdnn4l,tdnn2l) dim=1280
   linear-component name=tdnn8l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn8 $opts input=Append(0,3) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn8 $opts input=Append(0,3) dim=1280
   linear-component name=tdnn9l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn9 $opts input=Append(0,3,tdnn8l,tdnn6l,tdnn4l) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn9 $opts input=Append(0,3,tdnn8l,tdnn6l,tdnn4l) dim=1280
   linear-component name=tdnn10l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn10 $opts input=Append(0,3) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn10 $opts input=Append(0,3) dim=1280
   linear-component name=tdnn11l dim=256 $linear_opts input=Append(-3,0)
-  relu-batchnorm-layer name=tdnn11 $opts input=Append(0,3,tdnn10l,tdnn8l,tdnn6l) dim=1280
+  relu-batchnorm-dropout-layer name=tdnn11 $opts input=Append(0,3,tdnn10l,tdnn8l,tdnn6l) dim=1280
   linear-component name=prefinal-l dim=256 $linear_opts
 
   relu-batchnorm-layer name=prefinal-chain input=prefinal-l $opts dim=1280
@@ -160,6 +204,7 @@ if [ $stage -le 11 ]; then
     --egs.stage $get_egs_stage \
     --egs.opts "--frames-overlap-per-eg 0" \
     --egs.chunk-width $frames_per_eg \
+    --trainer.dropout-schedule $dropout_schedule \
     --trainer.num-chunk-per-minibatch $minibatch_size \
     --trainer.frames-per-iter 1500000 \
     --trainer.num-epochs $num_epochs \
