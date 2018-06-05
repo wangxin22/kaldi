@@ -13,9 +13,10 @@ nj=20
 # Now make MFCC plus pitch features.
 # mfccdir should be some place with a largish disk where you
 # want to store MFCC features.
-mfccdir=mfcc
+mfccdir=exp/mfcc
 for x in train dev test; do
-  steps/make_mfcc.sh --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
+  steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
+    --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
   steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
   utils/fix_data_dir.sh data/$x || exit 1;
 done
