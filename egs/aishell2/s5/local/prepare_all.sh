@@ -25,6 +25,7 @@ fi
 # wav.scp, text(word-segmented), utt2spk, spk2utt
 if [ $stage -le 2 ]; then
 	local/prepare_data.sh $corpus data/local/dict data/train || exit 1;
+  local/prepare_eval_data.sh $corpus data/local/dict || exit 1;
 fi
 
 # L
