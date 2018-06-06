@@ -54,7 +54,7 @@ if [ $stage -le 6 ]; then
   for datadir in ${train_set} ${test_sets}; do
   	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
 	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
-	  steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+	  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
       --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
   done
 fi
