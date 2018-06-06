@@ -18,8 +18,8 @@ nj=20
 # mfccdir should be some place with a largish disk where you
 # want to store MFCC features.
 if [ $stage -le 0 ]; then
-  mfccdir=exp/mfcc
   for x in train dev test; do
+    mfccdir=exp/mfcc_$x
     steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
       --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
