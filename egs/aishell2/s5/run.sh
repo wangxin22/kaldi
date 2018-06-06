@@ -11,7 +11,7 @@
 
 # modify this to your AISHELL-2 corpus data path
 # e.g /disk10/data/AISHELL-2/iOS/data
-corpus=corpora/AISHELL2/iOS/data
+corpus=/efs/mlteam/xuechen/corpora/AISHELL-2/iOS/data
 
 nj=20
 stage=1
@@ -19,6 +19,7 @@ gmm_stage=0
 
 . ./cmd.sh
 . ./path.sh
+. ./utils/parse_options.sh
 
 # we should probably move jieba(for word segmentation) into 
 # Kaldi's "tools" dir with Dan's approval

@@ -20,7 +20,7 @@ nj=20
 if [ $stage -le 0 ]; then
   mfccdir=exp/mfcc
   for x in train dev test; do
-    steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
+    steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
       --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     utils/fix_data_dir.sh data/$x || exit 1;

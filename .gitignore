@@ -141,3 +141,7 @@ GSYMS
 /tools/mmseg-1.3.0.tar.gz
 /tools/mmseg-1.3.0/
 /kaldiwin_vs*
+
+# for aishell2 specifically
+egs/aishell2/s5/corpora
+egs/aishell2/s5/local/jieba/

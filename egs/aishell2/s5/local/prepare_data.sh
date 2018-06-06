@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright 2018 AIShell-Foundation(Authors:Jiayu DU, Xingyu NA, Bengu WU, Hao ZHENG)
 #           2018 Beijing Shell Shell Tech. Co. Ltd. (Author: Hui BU)
+#           2018 Emotech LTD (Author: Xuechen LIU)
 # Apache 2.0
 
 # transform raw AISHELL-2 data to kaldi format
@@ -42,14 +43,14 @@ fi
 # validate utt-key list
 awk '{print $1}' $corpus/wav.scp   > $tmp/wav_utt.list
 awk '{print $1}' $corpus/trans.txt > $tmp/trans_utt.list
-utils/filter_scp.pl -f 1 $tmp/wav_utt.list $tmp/trans_utt.list > $tmp/utt.list
+cat $tmp/wav_utt.list > $tmp/utt.list
 
 # wav.scp
 awk -F'\t' -v path_prefix=$corpus '{printf("%s\t%s/%s\n",$1,path_prefix,$2)}' $corpus/wav.scp > $tmp/tmp_wav.scp
 utils/filter_scp.pl -f 1 $tmp/utt.list $tmp/tmp_wav.scp | sort -k 1 | uniq > $tmp/wav.scp
 
 # text
-utils/filter_scp.pl -f 1 $tmp/utt.list $corpus/trans.txt | sort -k 1 | uniq > $tmp/trans.txt
+cat $corpus/trans.txt | awk '{print $2}' | paste -d'\t' $tmp/utt.list - | sort -k 1 | uniq > $tmp/trans.txt
 awk '{print $1}' $dict_dir/lexicon.txt | sort | uniq | awk 'BEGIN{idx=0}{print $1,idx++}'> $tmp/vocab.txt
 python local/word_segmentation.py $tmp/vocab.txt $tmp/trans.txt > $tmp/text
 

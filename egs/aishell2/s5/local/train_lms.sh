@@ -4,13 +4,14 @@
 # Apache 2.0
 
 # To be run from one directory above this script.
+set -euxo pipefail
 . ./path.sh
 
 text=data/local/train/text
 lexicon=data/local/dict/lexicon.txt
 
 for f in "$text" "$lexicon"; do
-  [ ! -f $x ] && echo "$0: No such file $f" && exit 1;
+  [ ! -f $f ] && echo "$0: No such file $f" && exit 1;
 done
 
 # train language model for ASR
@@ -34,7 +35,7 @@ cleantext=$dir/text.no_oov
 
 cat $text | awk -v lex=$lexicon 'BEGIN{while((getline<lex) >0){ seen[$1]=1; } }
   {for(n=1; n<=NF;n++) {  if (seen[$n]) { printf("%s ", $n); } else {printf("<UNK> ");} } printf("\n");}' \
-  > $cleantext || exit 1;
+  > $cleantext
 
 cat $cleantext | awk '{for(n=2;n<=NF;n++) print $n; }' | sort | uniq -c | \
    sort -nr > $dir/word.counts || exit 1;
