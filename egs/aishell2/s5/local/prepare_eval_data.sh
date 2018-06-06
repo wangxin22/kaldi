@@ -7,23 +7,18 @@
 # To run this script from scratch, you may need to install unar as below:
 # apt install unar
 
-set -euxo pipefail
+set -e
 . ./cmd.sh
 . ./path.sh
 
-expected_num_files=1009223
-tmp=data/local/
-
-if [ $# != 3 ]; then
-  echo "Usage: $0 <corpus-data-dir> <dict-dir> <output-dir>"
-  echo " $0 /export/AISHELL-2/iOS/data data/local/dict data/"
+if [ $# != 2 ]; then
+  echo "Usage: $0 <corpus-data-dir> <dict-dir>"
+  echo " $0 /export/AISHELL-2/iOS/data data/local/dict "
   exit 1;
 fi
  # note: the corpus directory shall be full name
 corpus=$1
 dict_dir=$2
-
-mkdir -p $tmp
 
 # check if the downloading and extracting has been done. If not, do it
 # note: 'evalT' stores the text files for each recording condition and
@@ -46,8 +41,9 @@ done
 
 # prepare transcriptions, stored as trans.txt
 # according to current architecture, first dev then eval
-num_line_dev=$(wc -l $corpus/DEV/wav.scp)
-num_line_test=$(wc -l $corpus/TEST/wav.scp)
+num_line_dev=$(wc -l $corpus/DEV/wav.scp | awk '{print $1}')
+num_line_test=$(wc -l $corpus/TEST/wav.scp | awk '{print $1}')
+echo $num_line_dev
 head -n $num_line_dev $corpus/evalT/ios.txt > $corpus/DEV/trans.txt || exit 1;
 tail -n $num_line_test $corpus/evalT/ios.txt > $corpus/TEST/trans.txt || exit 1;
 
