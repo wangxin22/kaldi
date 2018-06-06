@@ -31,10 +31,11 @@ fi
 
 # prepare wav.scp
 for part in DEV TEST; do
-  for n in $corpus/$part/IOS/*/*; do printf '%s\n' "$n"; done > $corpus/$part/wav.list || exit 1;
+  for n in $corpus/$part/IOS/*/*; do printf '%s\n' "$n"; done > $corpus/$part/raw.list || exit 1;
   IFS=$'\n'       # make newlines the only separator
-  for i in $(cat < "$corpus/$part/wav.list"); do
+  for i in $(cat < "$corpus/$part/raw.list"); do
     echo "$i" | rev | cut -d'/' -f 1 | cut -d'.' -f 2 | rev >> $corpus/$part/utt.list
+    echo "$i" | rev | cut -d'/' -f 1-3 | rev >> wav.list
   done
   paste -d'\t' $corpus/$part/utt.list $corpus/$part/wav.list > $corpus/$part/wav.scp || exit 1;
 done
@@ -52,3 +53,5 @@ for part in DEV TEST; do
   lower_part=$(echo $part | tr '[:upper:]' '[:lower:]')
   local/prepare_data.sh $corpus/$part $dict_dir data/$lower_part || exit 1;
 done
+
+
