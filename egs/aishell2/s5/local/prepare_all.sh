@@ -8,6 +8,7 @@ stage=1
 
 . ./cmd.sh
 . ./path.sh
+. ./utils/parse_options.sh
 
 if [ $# -ne 1 ]; then
 	echo "prepare.sh <corpus-data-dir>"

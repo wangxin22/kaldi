@@ -34,8 +34,8 @@ for part in DEV TEST; do
   for n in $corpus/$part/IOS/*/*; do printf '%s\n' "$n"; done > $corpus/$part/raw.list || exit 1;
   IFS=$'\n'       # make newlines the only separator
   for i in $(cat < "$corpus/$part/raw.list"); do
-    echo "$i" | rev | cut -d'/' -f 1 | cut -d'.' -f 2 | rev >> $corpus/$part/utt.list
-    echo "$i" | rev | cut -d'/' -f 1-3 | rev >> $corpus/$part/wav.list
+    echo "$i" | rev | cut -d'/' -f 1 | cut -d'.' -f 2 | rev | sort | uniq  >> $corpus/$part/utt.list
+    echo "$i" | rev | cut -d'/' -f 1-3 | rev | sort | uniq >> $corpus/$part/wav.list
   done
   paste -d'\t' $corpus/$part/utt.list $corpus/$part/wav.list > $corpus/$part/wav.scp || exit 1;
 done

@@ -48,6 +48,7 @@ if [ $stage -le 2 ]; then
     exp/mono/graph data/dev exp/mono/decode_dev
   steps/decode.sh --cmd "$decode_cmd" --config conf/decode.conf --nj $test_nj \
     exp/mono/graph data/test exp/mono/decode_test
+  exit 0;
 fi
 
 # mono alignment
