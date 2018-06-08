@@ -32,7 +32,7 @@ fi
 # prepare wav.scp
 for part in DEV TEST; do
   for n in $corpus/$part/IOS/*/*; do printf '%s\n' "$n"; done > $corpus/$part/raw.list || exit 1;
-  IFS=$'\n'       # make newlines the only separator
+  #IFS=$'\n'       # make newlines the only separator
   for i in $(cat < "$corpus/$part/raw.list"); do
     echo "$i" | rev | cut -d'/' -f 1 | cut -d'.' -f 2 | rev | sort | uniq  >> $corpus/$part/utt.list
     echo "$i" | rev | cut -d'/' -f 1-3 | rev | sort | uniq >> $corpus/$part/wav.list
@@ -45,8 +45,8 @@ done
 num_line_dev=$(wc -l $corpus/DEV/wav.scp | awk '{print $1}')
 num_line_test=$(wc -l $corpus/TEST/wav.scp | awk '{print $1}')
 echo $num_line_dev
-head -n $num_line_dev $corpus/evalT/ios.txt > $corpus/DEV/trans.txt || exit 1;
-tail -n $num_line_test $corpus/evalT/ios.txt > $corpus/TEST/trans.txt || exit 1;
+head -n $num_line_dev $corpus/evalT/ios.txt | sort -k 1 | uniq > $corpus/DEV/trans.txt || exit 1;
+tail -n $num_line_test $corpus/evalT/ios.txt | sort -k 1 | uniq > $corpus/TEST/trans.txt || exit 1;
 
 # then prepare data formally
 for part in DEV TEST; do

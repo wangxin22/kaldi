@@ -1,8 +1,6 @@
 #!/bin/bash
 # Augment data using RIR noise, very similar to the one used for SRE
 
-# Emotech LTD (Author: Xuechen Liu), 2018
-
 . ./cmd.sh
 . ./path.sh
 set -euxo pipefail
@@ -17,22 +15,22 @@ nj=15
 . ./utils/parse_options.sh
 
 # download rir directory
-#if [ $stage -le 0 ] && [ ! -d "RIRS_NOISES" ]; then
-#  # Download the package that includes the real RIRs, simulated RIRs, isotropic noises and point-source noises
-#  wget --no-check-certificate http://www.openslr.org/resources/28/rirs_noises.zip
-#  unzip rirs_noises.zip
-#fi
+if [ $stage -le 0 ] && [ ! -d "RIRS_NOISES" ]; then
+  # Download the package that includes the real RIRs, simulated RIRs, isotropic noises and point-source noises
+  wget --no-check-certificate http://www.openslr.org/resources/28/rirs_noises.zip
+  unzip rirs_noises.zip
+fi
 
 # re-extract feature but with utt2num_frames
-#if [ $stage -le 1 ]; then
-#  if [ ! -f $datadir/utt2num_frames ]; then
-#    steps/make_mfcc_pitch.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --nj $nj \
-#      $datadir exp/train_for_rir_pollution exp/mfcc_for_rir_pollution || exit 1;
-#    utils/fix_data_dir.sh $datadir || exit 1;
-#  else
-#    echo "utt2num_frames already exists. We won't re-compute it."
- # fi
-#fi
+if [ $stage -le 1 ]; then
+  if [ ! -f $datadir/utt2num_frames ]; then
+    steps/make_mfcc_pitch.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --nj $nj \
+      $datadir exp/train_for_rir_pollution exp/mfcc_for_rir_pollution || exit 1;
+    utils/fix_data_dir.sh $datadir || exit 1;
+  else
+    echo "utt2num_frames already exists. We won't re-compute it." 
+ fi
+fi
 
 # augmentation with RIR
 if [ $stage -le 2 ]; then
@@ -47,7 +45,7 @@ if [ $stage -le 2 ]; then
   # [ -f steps/data/reverberate_data_dir_notext.py ] || \
   #   cp /efs/mlteam/raymond/kaldi/egs/ami-lbi-emo/s5d-si-rvms/steps/data/reverberate_data_dir_notext.py \
   #   steps/data/
-  python steps/data/reverberate_data_dir_notext.py \
+  python steps/data/reverberate_data_dir.py \
     "${rvb_opts[@]}" \
     --speech-rvb-probability 1 \
     --pointsource-noise-addition-probability 0 \
@@ -66,7 +64,7 @@ fi
 
 if [ $stage -le 5 ]; then
   # re-extract features and perform combination
-  steps/make_mfcc_pitch_online.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --cmd "$train_cmd" --nj $nj \
+  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --cmd "$train_cmd" --nj $nj \
     ${datadir}_rev exp/train_sp_hires_rev exp/mfcc_train_sp_hires_rev || exit 1;
   utils/combine_data.sh ${datadir}_clean_plus_rir ${datadir} ${datadir}_rev
   utils/fix_data_dir.sh ${datadir}_clean_plus_rir

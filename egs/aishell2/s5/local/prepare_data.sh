@@ -43,7 +43,7 @@ fi
 # validate utt-key list
 awk '{print $1}' $corpus/wav.scp   > $tmp/wav_utt.list
 awk '{print $1}' $corpus/trans.txt > $tmp/trans_utt.list
-cat $tmp/wav_utt.list > $tmp/utt.list
+cat $tmp/wav_utt.list | sort -k 1 | uniq > $tmp/utt.list
 
 # wav.scp
 awk -F'\t' -v path_prefix=$corpus '{printf("%s\t%s/%s\n",$1,path_prefix,$2)}' $corpus/wav.scp > $tmp/tmp_wav.scp

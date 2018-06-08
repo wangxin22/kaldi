@@ -9,12 +9,13 @@ set -euxo pipefail
 # number of jobs
 stage=0
 nj=20
-dev_nj=5
-test_nj=10
 
 . ./cmd.sh
 [ -f ./path.sh ] && . ./path.sh;
 . parse_options.sh
+
+dev_nj=$(wc -l data/dev/spk2utt | awk '{print $1}' || exit 1;)
+test_nj=$(wc -l data/test/spk2utt | awk '{print $1}' || exit 1;)
 
 # Now make MFCC plus pitch features.
 # mfccdir should be some place with a largish disk where you
@@ -22,7 +23,7 @@ test_nj=10
 if [ $stage -le 0 ]; then
   for x in train dev test; do
     mfccdir=exp/mfcc_$x
-    steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
+    steps/make_mfcc.sh --mfcc-config conf/mfcc.conf \
       --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     utils/fix_data_dir.sh data/$x || exit 1;
@@ -48,7 +49,6 @@ if [ $stage -le 2 ]; then
     exp/mono/graph data/dev exp/mono/decode_dev
   steps/decode.sh --cmd "$decode_cmd" --config conf/decode.conf --nj $test_nj \
     exp/mono/graph data/test exp/mono/decode_test
-  exit 0;
 fi
 
 # mono alignment

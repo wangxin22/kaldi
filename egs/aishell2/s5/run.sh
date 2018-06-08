@@ -34,6 +34,7 @@ fi
 # GMM
 if [ $stage -le 2 ]; then
 	local/run_gmm.sh --nj $nj --stage $gmm_stage
+  echo "gmm complete" && exit 0;
 fi
 
 # xent
