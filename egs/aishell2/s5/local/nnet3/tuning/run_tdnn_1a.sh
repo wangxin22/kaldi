@@ -20,7 +20,7 @@ initial_effective_lrate=0.0015
 final_effective_lrate=0.00015
 num_epochs=4
 num_jobs_initial=2
-num_jobs_final=6
+num_jobs_final=12
 nj=30
 remove_egs=true
 
@@ -41,7 +41,7 @@ where "nvcc" is installed.
 EOF
 fi
 
-# we use 40-dim high-resolution mfcc features (w/o pitch and ivector) for nn training
+# we use 43-dim high-resolution mfcc features (w pitch and w/o ivector) for nn training
 # no utt- and spk- level cmvn
 
 dir=exp/nnet3/tdnn_sp${affix:+_$affix}
@@ -56,7 +56,8 @@ if [ $stage -le 6 ]; then
   for datadir in ${train_set} ${test_sets}; do
     utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
     utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
-    steps/make_mfcc.sh --mfcc-config conf/mfcc_hires.conf --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
+    steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+      --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
   done
 fi
 
@@ -64,10 +65,11 @@ if [ $stage -le 7 ]; then
   echo "$0: creating neural net configs";
 
   num_targets=$(tree-info $ali_dir/tree |grep num-pdfs|awk '{print $2}')
+  input_dim=$(feat-to-dim scp:data/${train_set}_hires/feats.scp -)  
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=40 name=input
+  input dim=$input_dim name=input
 
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable

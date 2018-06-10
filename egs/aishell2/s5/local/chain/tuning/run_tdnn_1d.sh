@@ -5,7 +5,7 @@
 set -euxo pipefail
 
 # configs for 'chain'
-affix=
+affix=all
 stage=10
 train_stage=-10
 get_egs_stage=-10
@@ -51,7 +51,7 @@ treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
 if [ $stage -le 5 ]; then
-  mfccdir=exp/mfcc_hires
+  mfccdir=mfcc_hires
   for datadir in ${train_set} ${test_sets}; do
   	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
 	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
@@ -67,19 +67,20 @@ if [ $stage -le 6 ]; then
   mkdir -p exp/chain/diag_ubm_${affix}
   temp_data_root=exp/chain/diag_ubm_${affix}
 
-  num_utts_total=$(wc -l < data/${datadir}_hires/utt2spk)
+  num_utts_total=$(wc -l < data/${train_set}_hires/utt2spk)
   num_utts=$[$num_utts_total/4]
-  utils/data/subset_data_dir.sh data/${datadir}_hires \
+  utils/data/subset_data_dir.sh data/${train_set}_hires \
     $num_utts ${temp_data_root}/${train_set}_subset
 
-  echo "$0: get cmvn stats if not there for subset"
-  [ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
+  #echo "$0: get cmvn stats if not there for subset"
+  #[ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
     steps/compute_cmvn_stats.sh ${temp_data_root}/${train_set}_subset || exit 1;
 
   echo "$0: computing a PCA transform from the hires data."
   steps/online/nnet2/get_pca_transform.sh --cmd "$train_cmd" \
     --splice-opts "--left-context=3 --right-context=3" \
     --max-utts 10000 --subsample 2 \
+    --dim $(feat-to-dim scp:${temp_data_root}/${train_set}_subset/feats.scp -) \
     ${temp_data_root}/${train_set}_subset \
     exp/chain/pca_transform_${affix}
   
@@ -93,14 +94,14 @@ if [ $stage -le 6 ]; then
   
   echo "$0: training the iVector extractor"
   steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj $nj \
-    data/${datadir}_hires exp/chain/diag_ubm_${affix} \
+    data/${train_set}_hires exp/chain/diag_ubm_${affix} \
     exp/chain/extractor_${affix} || exit 1;
-
-  steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires data/${datadir}_hires_max2
-  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
-    data/${datadir}_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${train_set}_${affix} || exit 1;
   
-  exit 0;
+  for datadir in ${train_set} ${test_sets}; do
+    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires data/${datadir}_hires_max2
+    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
+      data/${datadir}_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
+  done  
 fi
 
 if [ $stage -le 7 ]; then
@@ -194,6 +195,7 @@ if [ $stage -le 11 ]; then
 
   steps/nnet3/chain/train.py --stage $train_stage \
     --cmd "$decode_cmd" \
+    --feat.online-ivector-dir exp/chain/ivectors_${train_set}_${affix} \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
     --chain.xent-regularize $xent_regularize \
     --chain.leaky-hmm-coefficient 0.1 \
@@ -232,6 +234,7 @@ if [ $stage -le 13 ]; then
   for test_set in $test_sets; do
     steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
       --nj 10 --cmd "$decode_cmd" \
+      --online-ivector-dir exp/chain/ivectors_${test_set}_${affix} \
       $graph_dir data/${test_set}_hires $dir/decode_${test_set} || exit 1;
   done
 fi
