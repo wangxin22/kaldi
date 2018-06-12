@@ -12,7 +12,7 @@ get_egs_stage=-10
 train_set=train
 test_sets="dev test"
 feat_dir=data/${train_set}_hires
-dir=exp/chain/tdnn_1d  # Note: _sp will get added to this
+dir=exp/chain/tdnn_1e  # Note: _sp will get added to this
 decode_iter=
 
 # training options
@@ -69,52 +69,54 @@ if [ $stage -le 5 ]; then
   done
 fi
 # change training data dir
-if [[ $rir == "true" ]] && [ -d data/${train_set}_hires_rev ]; then
-  feat_dir=data/${train_set}_hires_rev
+if [[ $rir == "true" ]] && [ -d data/${train_set}_hires_clean_plus_rir ]; then
+  feat_dir=data/${train_set}_hires_clean_plus_rir
 fi
 
 # extract ivector from unified data using the trained
 if [ $stage -le 6 ]; then
-  echo "$0: computing a subset of data to train the diagonal UBM."
+  #echo "$0: computing a subset of data to train the diagonal UBM."
   # We'll use about a quarter of the data.
-  mkdir -p exp/chain/diag_ubm_${affix}
+ # mkdir -p exp/chain/diag_ubm_${affix}
   temp_data_root=exp/chain/diag_ubm_${affix}
 
-  num_utts_total=$(wc -l < ${feat_dir}/utt2spk)
-  num_utts=$[$num_utts_total/4]
-  utils/data/subset_data_dir.sh ${feat_dir} \
-    $num_utts ${temp_data_root}/${train_set}_subset
+  #num_utts_total=$(wc -l < ${feat_dir}/utt2spk)
+  #num_utts=$[$num_utts_total/4]
+  #utils/data/subset_data_dir.sh ${feat_dir} \
+  #  $num_utts ${temp_data_root}/${train_set}_subset
 
   #echo "$0: get cmvn stats if not there for subset"
   #[ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
-    steps/compute_cmvn_stats.sh ${temp_data_root}/${train_set}_subset || exit 1;
+    #steps/compute_cmvn_stats.sh ${temp_data_root}/${train_set}_subset || exit 1;
 
-  echo "$0: computing a PCA transform from the hires data."
-  steps/online/nnet2/get_pca_transform.sh --cmd "$train_cmd" \
-    --splice-opts "--left-context=3 --right-context=3" \
-    --max-utts 10000 --subsample 2 \
-    --dim $(feat-to-dim scp:${temp_data_root}/${train_set}_subset/feats.scp -) \
-    ${temp_data_root}/${train_set}_subset \
-    exp/chain/pca_transform_${affix}
+  #echo "$0: computing a PCA transform from the hires data."
+  #steps/online/nnet2/get_pca_transform.sh --cmd "$train_cmd" \
+  #  --splice-opts "--left-context=3 --right-context=3" \
+  #  --max-utts 10000 --subsample 2 \
+  #  --dim $(feat-to-dim scp:${temp_data_root}/${train_set}_subset/feats.scp -) \
+  #  ${temp_data_root}/${train_set}_subset \
+  #  exp/chain/pca_transform_${affix}
   
   echo "$0: training the diagonal UBM."
   # Use 512 Gaussians in the UBM.
-  steps/online/nnet2/train_diag_ubm.sh --cmd "$train_cmd" --nj $nj \
-    --num-frames 700000 \
-    --num-threads 8 \
-    ${temp_data_root}/${train_set}_subset 512 \
-    exp/chain/pca_transform_${affix} exp/chain/diag_ubm_${affix}
+  #steps/online/nnet2/train_diag_ubm.sh --cmd "$train_cmd" --nj $nj \
+  #  --num-frames 700000 \
+  #  --num-threads 8 \
+  #  ${temp_data_root}/${train_set}_subset 512 \
+  #  exp/chain/pca_transform_${affix} exp/chain/diag_ubm_${affix}
   
   echo "$0: training the iVector extractor"
-  steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj $nj \
-    ${feat_dir} exp/chain/diag_ubm_${affix} \
-    exp/chain/extractor_${affix} || exit 1;
+  #steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj $nj \
+  #  ${feat_dir} exp/chain/diag_ubm_${affix} \
+  #  exp/chain/extractor_${affix} || exit 1;
   
-  for datadir in ${train_set} ${test_sets}; do
-    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires data/${datadir}_hires_max2
+  for datadir in ${train_set}; do
+    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires_clean_plus_rir data/${datadir}_hires_clean_plus_rir_max2
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
-      data/${datadir}_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
-  done  
+      data/${datadir}_hires_clean_plus_rir_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
+  done
+
+  echo stage6.done && exit 0;  
 fi
 
 if [ $stage -le 7 ]; then
@@ -207,7 +209,7 @@ if [ $stage -le 11 ]; then
   #fi
 
   steps/nnet3/chain/train.py --stage $train_stage \
-    --cmd "$decode_cmd" \
+    --cmd "$cuda_cmd" \
     --feat.online-ivector-dir exp/chain/ivectors_${train_set}_${affix} \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
     --chain.xent-regularize $xent_regularize \
@@ -233,6 +235,8 @@ if [ $stage -le 11 ]; then
     --tree-dir $treedir \
     --lat-dir exp/tri4_sp_lats \
     --dir $dir  || exit 1;
+
+    touch stage11.done && exit 0;
 fi
 
 if [ $stage -le 12 ]; then
