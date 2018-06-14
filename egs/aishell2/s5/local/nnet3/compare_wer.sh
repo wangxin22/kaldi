@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018  Emotech LTD (Author: Xuechen Liu)
+# Copyright 2018  Emotech LTD (Author: Xuechen LIU)
 
 # compare wer between diff. models in hkust nnet3 directory
 # exemplar usage: local/nnet3/compare_wer_general.sh exp/nnet3/tdnn_sp exp/nnet3/tdnn_sp_pr43
@@ -11,18 +11,12 @@ set -e
 . ./path.sh
 
 if [ $# == 0 ]; then
-  echo "Usage: $0: [--online] <dir1> [<dir2> ... ]"
+  echo "Usage: $0: <dir1> [<dir2> ... ]"
   echo "e.g.: $0 exp/nnet3/tdnn_sp exp/nnet3/tdnn_sp_pr"
   exit 1
 fi
 
 echo "# $0 $*"
-
-include_online=false
-if [ "$1" == "--online" ]; then
-  include_online=true
-  shift
-fi
 
 set_names() {
   if [ $# != 1 ]; then
@@ -43,28 +37,10 @@ echo
 echo -n "# WER(%)               "
 for x in $*; do
   set_names $x
-  wer=$([ -d $x ] && grep WER $x/decode/cer_* | utils/best_wer.sh | awk '{print $2}')
+  wer=$([ -d $x ] && grep WER $x/decode_test/cer_* | utils/best_wer.sh | awk '{print $2}')
   printf "% 10s" $wer
 done
 echo
-
-# so how about online WER?
-if $include_online; then
-  echo -n "# WER(%)[online]       "
-  for x in $*; do
-    set_names $x
-    wer=$(cat ${x}_online/decode/cer_* | utils/best_wer.sh | awk '{print $2}')
-    printf "% 10s" $wer
-  done
-  echo
-  echo -n "# WER(%)[per-utt]      "
-  for x in $*; do
-    set_names $x
-    wer_per_utt=$(cat ${x}_online/decode_per_utt/cer_* | utils/best_wer.sh | awk '{print $2}')
-    printf "% 10s" $wer_per_utt
-  done
-  echo
-fi
 
 # print log for train & validation
 echo -n "# Final train prob     "
