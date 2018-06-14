@@ -17,4 +17,4 @@ export train_cmd="run.pl --max-jobs-run 30"
 export decode_cmd="run.pl --max-jobs-run 30"
 export mkgraph_cmd="run.pl --max-jobs-run 30"
 
-export cuda_cmd="run.pl --gpu 8 --mem 20G"
+export cuda_cmd="run.pl"

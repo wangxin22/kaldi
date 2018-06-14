@@ -184,8 +184,9 @@ fi
 graph_dir=$dir/graph
 if [ $stage -le 13 ]; then
   for test_set in $test_sets; do
+    nj=$(wc -l data/${test_set}_hires/spk2utt | awk '{print $1}')
     steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
-      --nj 10 --cmd "$decode_cmd" \
+      --nj $nj --cmd "$decode_cmd" \
       $graph_dir data/${test_set}_hires $dir/decode_${test_set} || exit 1;
   done
 fi
