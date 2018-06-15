@@ -53,10 +53,10 @@ lang=data/lang_chain
 if [ $stage -le 5 ]; then
   mfccdir=mfcc_hires
   for datadir in ${train_set} ${test_sets}; do
-  	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
-	  utils/data/perturb_data_dir_speed_3way.sh data/${datadir}_hires data/${train_set}_sp_hires || exit 1;
+          # we do sp3 on dev&test data as well just in case we wanna perform test on it as well
+	  utils/data/perturb_data_dir_speed_3way.sh data/${datadir}_hires data/${datadirÂ}_sp_hires || exit 1;
 	  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
-      --nj $nj data/${train_set}_sp_hires exp/make_mfcc/ ${mfccdir}_3way_sp
+      --nj $nj data/${datadir}_sp_hires exp/make_mfcc/ ${mfccdir}_3way_sp
   done
 fi
 
@@ -97,11 +97,13 @@ if [ $stage -le 6 ]; then
     data/${train_set}_sp_hires exp/chain/diag_ubm_${affix} \
     exp/chain/extractor_${affix} || exit 1;
   
-  for datadir in ${train_set} ${test_sets}; do
+  for datadir in ${train_set}; do
     steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_sp_hires data/${datadir}_sp_hires_max2
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
       data/${datadir}_sp_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
   done  
+  
+  touch stage6.done && exit 0;
 fi
 
 if [ $stage -le 7 ]; then

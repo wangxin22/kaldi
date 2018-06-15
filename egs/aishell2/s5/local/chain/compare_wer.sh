@@ -1,10 +1,9 @@
 #!/bin/bash
-# Copyright 2018  Emotech LTD (Author: Xuechen LIU)
 
-# compare wer between diff. models in hkust chain directory
-# exemplar usage: local/chain/compare_wer.sh --online exp/chain/tdnn_7h_sp
-# note: this script is made quite general since we kinda wanna give more flexibility to
-#       users on adding affix for their own use when training models.
+# Copyright 2018  Emotech LTD (Author: Xuechen LIU)
+# Apache 2.0
+
+# compare wer between diff. models in aishell2 chain directory
 
 set -e
 . ./cmd.sh

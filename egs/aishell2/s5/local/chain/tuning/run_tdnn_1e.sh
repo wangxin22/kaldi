@@ -16,23 +16,22 @@ dir=exp/chain/tdnn_1e  # Note: _sp will get added to this
 decode_iter=
 
 # training options
-num_epochs=4
+num_epochs=2
 initial_effective_lrate=0.001
 final_effective_lrate=0.0001
 max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=2
-num_jobs_final=4
+num_jobs_final=8
 nj=15
 minibatch_size=128
 dropout_schedule='0,0@0.20,0.3@0.50,0'
 frames_per_eg=150,110,90
-remove_egs=true
+remove_egs=false
 common_egs_dir=
 xent_regularize=0.1
 
 # data augmentation options
-sp_3way=false
 rir=true
 
 # End configuration section.

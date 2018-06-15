@@ -235,6 +235,7 @@ if [ $stage -le 13 ]; then
     nj=$(wc -l data/${test_set}_hires/spk2utt | awk '{print $1}')
     steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
       --nj $nj --cmd "$decode_cmd" \
+      --online-ivector-dir exp/chain/ivectors_${test_set}_${affix} \
       $graph_dir data/${test_set}_hires $dir/decode_${test_set} || exit 1;
   done
 fi

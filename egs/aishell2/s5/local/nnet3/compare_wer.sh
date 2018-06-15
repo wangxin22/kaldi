@@ -1,10 +1,9 @@
 #!/bin/bash
-# Copyright 2018  Emotech LTD (Author: Xuechen LIU)
 
-# compare wer between diff. models in hkust nnet3 directory
-# exemplar usage: local/nnet3/compare_wer_general.sh exp/nnet3/tdnn_sp exp/nnet3/tdnn_sp_pr43
-# note: this script is made quite general since we kinda wanna give more flexibility to
-#       users on adding affix for their own use when training models.
+# Copyright 2018 Emotech LTD (Author: Xuechen LIU)
+# Apache 2.0
+
+# compare wer between diff. models in aishell2 nnet3 directory
 
 set -e
 . ./cmd.sh
