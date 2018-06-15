@@ -49,7 +49,7 @@ gmm_dir=exp/tri3
 test_sets="dev test"
 train_set=train
 ali_dir=${gmm_dir}_ali
-graph_dir=$gmm_dir/graph
+graph_dir=${gmm_dir}/graph
 
 if [ $stage -le 6 ]; then
   mfccdir=mfcc_hires

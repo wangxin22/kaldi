@@ -2,6 +2,15 @@
 
 # _1d is as _1c, but with dropout schedule added, referenced from wsj
 
+# results:
+# local/chain/compare_wer.sh exp/chain/tdnn_1d_all_sp
+# Model                tdnn_1d_all_sp
+# WER(%)                     8.84
+# Final train prob        -0.0696
+# Final valid prob        -0.0714
+# Final train prob (xent)   -0.7458
+# Final valid prob (xent)   -0.7854
+
 set -euxo pipefail
 
 # configs for 'chain'
