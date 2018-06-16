@@ -50,18 +50,26 @@ ali_dir=exp/tri3_ali
 treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
-if [ $stage -le 5 ]; then
-  mfccdir=mfcc_hires
+if [ $stage -le 4 ]; then
+  # mfccdir=mfcc_hires
+  # for datadir in ${train_set} ${test_sets}; do
+  #   # we do sp3 on dev&test data as well just in case we wanna perform test on it as well
+	#   utils/data/perturb_data_dir_speed_3way.sh data/${datadir}_hires data/${datadir}_sp_hires || exit 1;
+	#   steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+  #     --nj $nj data/${datadir}_sp_hires exp/make_mfcc/ ${mfccdir}_3way_sp
+  # done
+
+  # we also perform 3way perturbations on src data for fmllr training
   for datadir in ${train_set} ${test_sets}; do
-          # we do sp3 on dev&test data as well just in case we wanna perform test on it as well
-	  utils/data/perturb_data_dir_speed_3way.sh data/${datadir}_hires data/${datadirÂ}_sp_hires || exit 1;
-	  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
-      --nj $nj data/${datadir}_sp_hires exp/make_mfcc/ ${mfccdir}_3way_sp
+    # we do sp3 on dev&test data as well just in case we wanna perform test on it as well
+	  utils/data/perturb_data_dir_speed_3way.sh data/${datadir} data/${datadir}_sp || exit 1;
   done
+
+  touch stage4.done && exit 0;
 fi
 
 # extract ivector from unified data using the trained
-if [ $stage -le 6 ]; then
+if [ $stage -le 5 ]; then
   echo "$0: computing a subset of data to train the diagonal UBM."
   # We'll use about a quarter of the data.
   mkdir -p exp/chain/diag_ubm_${affix}
@@ -102,8 +110,12 @@ if [ $stage -le 6 ]; then
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
       data/${datadir}_sp_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
   done  
-  
-  touch stage6.done && exit 0;
+fi
+
+if [ $stage -le 6 ]; then
+  nj=$(cat $ali_dir/num_jobs) || exit 1;
+  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
+    data/${train_set}_sp data/lang exp/tri4 exp/tri4_sp || exit 1
 fi
 
 if [ $stage -le 7 ]; then
@@ -111,7 +123,7 @@ if [ $stage -le 7 ]; then
   # use the same num-jobs as the alignments
   nj=$(cat $ali_dir/num_jobs) || exit 1;
   steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/$train_set \
-    data/lang exp/tri3 exp/tri4_sp_lats
+    data/lang exp/tri4_sp exp/tri4_sp_lats
   rm exp/tri4_sp_lats/fsts.*.gz # save space
 fi
 
