@@ -120,7 +120,7 @@ if [ $stage -le 7 ]; then
   # Get the alignments as lattices (gives the LF-MMI training more freedom).
   # use the same num-jobs as the alignments
   nj=$(cat $ali_dir/num_jobs) || exit 1;
-  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/$train_set \
+  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/${train_set}_clean_plus_rir \
     data/lang exp/tri3 exp/tri4_sp_lats
   rm exp/tri4_sp_lats/fsts.*.gz # save space
 fi
