@@ -5,14 +5,17 @@
 . ./path.sh
 set -euxo pipefail
 
+# general options
+affix=nopitch
 stage=0
 frame_shift=0.01
 
 # directory options
-datadir=data/train_hires
 nj=15
 
 . ./utils/parse_options.sh
+
+datadir=data/train_hires_${affix}
 
 # download rir directory
 if [ $stage -le 0 ] && [ ! -d "RIRS_NOISES" ]; then
@@ -23,8 +26,8 @@ fi
 # extract feature but with utt2num_frames
 if [ $stage -le 1 ]; then
   if [ ! -f $datadir/utt2num_frames ]; then
-    steps/make_mfcc_pitch.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --nj $nj \
-      $datadir exp/train_for_rir_pollution exp/mfcc_for_rir_pollution || exit 1;
+    steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --nj $nj \
+      $datadir exp/train_for_rir_pollution_${affix} exp/mfcc_for_rir_pollution_${affix} || exit 1;
     utils/fix_data_dir.sh $datadir || exit 1;
   else
     echo "utt2num_frames already exists. We won't re-compute it." 
@@ -63,8 +66,8 @@ fi
 
 if [ $stage -le 5 ]; then
   # re-extract features and perform combination
-  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf --cmd "$train_cmd" --nj $nj \
-    ${datadir}_rev exp/train_hires_rev exp/mfcc_train_hires_rev || exit 1;
+  steps/make_mfcc.sh --mfcc-config conf/mfcc_hires.conf --cmd "$train_cmd" --nj $nj \
+    ${datadir}_rev exp/train_hires_rev_${affix} exp/mfcc_train_hires_rev_${affix} || exit 1;
   utils/combine_data.sh ${datadir}_clean_plus_rir ${datadir} ${datadir}_rev
   utils/fix_data_dir.sh ${datadir}_clean_plus_rir
 fi

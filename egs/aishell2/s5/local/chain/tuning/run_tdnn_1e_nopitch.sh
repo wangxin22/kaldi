@@ -1,32 +1,38 @@
 #!/bin/bash
 
-# _1f is as _1d, but with 3-way speed perturbation training data
+# _1e is as _1d, but with data augmented by RIR
 
 set -euxo pipefail
 
 # configs for 'chain'
-affix=all_plus_sp3
+affix=all_plus_rir
 stage=10
 train_stage=-10
 get_egs_stage=-10
-dir=exp/chain/tdnn_1f  # Note: _sp will get added to this
+train_set=train
+test_sets="dev test"
+feat_dir=data/${train_set}_hires
+dir=exp/chain/tdnn_1e  # Note: _sp will get added to this
 decode_iter=
 
 # training options
-num_epochs=4
+num_epochs=2
 initial_effective_lrate=0.001
 final_effective_lrate=0.0001
 max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=2
-num_jobs_final=4
+num_jobs_final=8
 nj=15
 minibatch_size=128
 dropout_schedule='0,0@0.20,0.3@0.50,0'
 frames_per_eg=150,110,90
-remove_egs=true
+remove_egs=false
 common_egs_dir=
 xent_regularize=0.1
+
+# data augmentation options
+rir=true
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -44,40 +50,42 @@ EOF
 fi
 
 dir=${dir}${affix:+_$affix}_sp
-train_set=train
-test_sets="dev test"
 ali_dir=exp/tri3_ali
 treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
-if [ $stage -le 4 ]; then
+if [ $stage -le 5 ]; then
   mfccdir=mfcc_hires
-  # we also perform 3way perturbations on src data for fmllr training
   for datadir in ${train_set} ${test_sets}; do
-    # we do sp3 on dev&test data as well just in case we wanna perform test on it as well
-    utils/data/perturb_data_dir_speed_3way.sh data/${datadir} data/${datadir}_sp || exit 1;
-    utils/copy_data_dir.sh data/${datadir}_sp data/${datadir}_sp_hires || exit 1;
-    steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
-      --nj $nj data/${datadir}_sp_hires exp/make_mfcc/ ${mfccdir}_3way_sp
+  	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires
+	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires || exit 1;
+	  steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc_hires.conf --pitch-config conf/pitch.conf \
+      --nj $nj data/${datadir}_hires exp/make_mfcc/ ${mfccdir}
+    # perform RIR data augmentation
+    if [[ $rir == "true" ]]; then
+      local/rir_dataaug.sh data/${datadir} || exit 1;
+    fi
   done
-
-  touch stage4.done && exit 0;
+fi
+# change training data dir
+if [[ $rir == "true" ]] && [ -d data/${train_set}_hires_clean_plus_rir ]; then
+  feat_dir=data/${train_set}_hires_clean_plus_rir
 fi
 
 # extract ivector from unified data using the trained
-if [ $stage -le 5 ]; then
+if [ $stage -le 6 ]; then
   echo "$0: computing a subset of data to train the diagonal UBM."
   # We'll use about a quarter of the data.
   mkdir -p exp/chain/diag_ubm_${affix}
   temp_data_root=exp/chain/diag_ubm_${affix}
 
-  num_utts_total=$(wc -l < data/${train_set}_sp_hires/utt2spk)
+  num_utts_total=$(wc -l < ${feat_dir}/utt2spk)
   num_utts=$[$num_utts_total/4]
-  utils/data/subset_data_dir.sh data/${train_set}_sp_hires \
+  utils/data/subset_data_dir.sh ${feat_dir} \
     $num_utts ${temp_data_root}/${train_set}_subset
 
-  #echo "$0: get cmvn stats if not there for subset"
-  #[ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
+  echo "$0: get cmvn stats if not there for subset"
+  [ -f ${temp_data_root}/${train_set}_subset/cmvn.scp ] || \
     steps/compute_cmvn_stats.sh ${temp_data_root}/${train_set}_subset || exit 1;
 
   echo "$0: computing a PCA transform from the hires data."
@@ -98,20 +106,14 @@ if [ $stage -le 5 ]; then
   
   echo "$0: training the iVector extractor"
   steps/online/nnet2/train_ivector_extractor.sh --cmd "$train_cmd" --nj $nj \
-    data/${train_set}_sp_hires exp/chain/diag_ubm_${affix} \
+    ${feat_dir} exp/chain/diag_ubm_${affix} \
     exp/chain/extractor_${affix} || exit 1;
   
   for datadir in ${train_set}; do
-    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_sp_hires data/${datadir}_sp_hires_max2
+    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires_clean_plus_rir data/${datadir}_hires_clean_plus_rir_max2
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
-      data/${datadir}_sp_hires_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
-  done  
-fi
-
-if [ $stage -le 6 ]; then
-  nj=$(cat $ali_dir/num_jobs) || exit 1;
-  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
-    data/${train_set}_sp data/lang exp/tri3 exp/tri4_sp || exit 1
+      data/${datadir}_hires_clean_plus_rir_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
+  done
 fi
 
 if [ $stage -le 7 ]; then
@@ -119,7 +121,7 @@ if [ $stage -le 7 ]; then
   # use the same num-jobs as the alignments
   nj=$(cat $ali_dir/num_jobs) || exit 1;
   steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/$train_set \
-    data/lang exp/tri4_sp exp/tri4_sp_lats
+    data/lang exp/tri3 exp/tri4_sp_lats
   rm exp/tri4_sp_lats/fsts.*.gz # save space
 fi
 
@@ -146,7 +148,7 @@ fi
 
 if [ $stage -le 10 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
-  feat_dim=$(feat-to-dim scp:data/${train_set}_sp_hires/feats.scp -)
+  feat_dim=$(feat-to-dim scp:${feat_dir}/feats.scp -)
   num_targets=$(tree-info $treedir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
   opts="l2-regularize=0.002"
@@ -204,7 +206,7 @@ if [ $stage -le 11 ]; then
   #fi
 
   steps/nnet3/chain/train.py --stage $train_stage \
-    --cmd "$decode_cmd" \
+    --cmd "$cuda_cmd" \
     --feat.online-ivector-dir exp/chain/ivectors_${train_set}_${affix} \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
     --chain.xent-regularize $xent_regularize \
@@ -226,7 +228,7 @@ if [ $stage -le 11 ]; then
     --trainer.optimization.final-effective-lrate $final_effective_lrate \
     --trainer.max-param-change $max_param_change \
     --cleanup.remove-egs $remove_egs \
-    --feat-dir data/${train_set}_sp_hires \
+    --feat-dir ${feat_dir} \
     --tree-dir $treedir \
     --lat-dir exp/tri4_sp_lats \
     --dir $dir  || exit 1;
@@ -245,6 +247,7 @@ if [ $stage -le 13 ]; then
     nj=$(wc -l data/${test_set}_hires/spk2utt | awk '{print $1}')
     steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
       --nj $nj --cmd "$decode_cmd" \
+      --online-ivector-dir exp/chain/ivectors_${test_set}_${affix} \
       $graph_dir data/${test_set}_hires $dir/decode_${test_set} || exit 1;
   done
 fi
