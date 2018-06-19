@@ -125,21 +125,10 @@ if [ $stage -le 5 ]; then
   done
 fi
 
-if [ $stage -le 6 ]; then
-  # re-train LDA+MLLT based on feats with no-feats
-  steps/train_lda_mllt.sh --cmd "$train_cmd" \
-    10000 80000 data/${train_set}_clean_plus_rir data/lang exp/tri2_ali exp/tri3_${affix} || exit 1;
-  #steps/align_si.sh ==cmd "$train_cmd" --nj $nj \
-   # data/${train_set}_clean_plus_rir data/lang exp/tri3_${affix} exp/tri3_ali_${affix}
-fi
-
 if [ $stage -le 7 ]; then
   # Get the alignments as lattices (gives the LF-MMI training more freedom).
   # use the same num-jobs as the alignments
   nj=$(cat $ali_dir/num_jobs) || exit 1;
-  [ -f data/${train_set}_hires_nopitch_clean_plus_rir/cmvn.scp ] || (steps/compute_cmvn_stats.sh data/${train_set}_hires_nopitch_clean_plus_rir || exit 1;)
-  #steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" data/${train_set}_hires_nopitch_clean_plus_rir \
-  #  data/lang exp/tri3 exp/tri3_${affix}
   steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/${train_set}_clean_plus_rir \
     data/lang exp/tri3_${affix} exp/tri4_sp_lats_${affix}
   rm exp/tri4_sp_lats_${affix}/fsts.*.gz # save space

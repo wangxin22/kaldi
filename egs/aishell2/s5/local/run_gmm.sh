@@ -23,7 +23,7 @@ test_nj=$(wc -l data/test/spk2utt | awk '{print $1}' || exit 1;)
 if [ $stage -le 0 ]; then
   for x in train dev test; do
     mfccdir=exp/mfcc_$x
-    steps/make_mfcc.sh --mfcc-config conf/mfcc.conf \
+    steps/make_mfcc_pitch.sh --mfcc-config conf/mfcc.conf --pitch-config conf/pitch.conf \
       --cmd "$train_cmd" --nj $nj data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     steps/compute_cmvn_stats.sh data/$x exp/make_mfcc/$x $mfccdir || exit 1;
     utils/fix_data_dir.sh data/$x || exit 1;
