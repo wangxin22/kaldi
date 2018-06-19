@@ -21,7 +21,7 @@ initial_effective_lrate=0.001
 final_effective_lrate=0.0001
 max_param_change=2.0
 final_layer_normalize_target=0.5
-num_jobs_initial=2
+num_jobs_initial=4
 num_jobs_final=8
 nj=15
 minibatch_size=128
@@ -54,17 +54,19 @@ ali_dir=exp/tri3_ali
 treedir=exp/chain/tri4_cd_tree_sp
 lang=data/lang_chain
 
-if [ $stage -le 5 ]; then
+if [ $stage -le 4 ]; then
   mfccdir=mfcc_hires_nopitch
   for datadir in ${train_set} ${test_sets}; do
   	utils/copy_data_dir.sh data/${datadir} data/${datadir}_hires_nopitch
 	  utils/data/perturb_data_dir_volume.sh data/${datadir}_hires_nopitch || exit 1;
 	  steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf \
       --nj $nj data/${datadir}_hires_nopitch exp/make_mfcc_nopitch/ ${mfccdir}
+    steps/compute_cmvn_stats.sh data/${datadir}_hires_nopitch || exit 1;
+    utils/fix_data_dir.sh data/${datadir}_hires_nopitch || exit 1;
     # perform RIR data augmentation
     if [[ $rir == "true" ]]; then
-      local/rir_dataaug_nopitch.sh data/${datadir} || exit 1;
-      local/rir_dataaug_nopitch.sh data/${datadir}_hires_nopitch || exit 1;
+      local/rir_dataaug_nopitch.sh --nj $nj data/${datadir} || exit 1;
+      local/rir_dataaug_nopitch.sh --nj $nj data/${datadir}_hires_nopitch || exit 1;
     fi
   done
 fi
@@ -74,7 +76,7 @@ if [[ $rir == "true" ]] && [ -d data/${train_set}_hires_nopitch_clean_plus_rir ]
 fi
 
 # extract ivector from unified data using the trained
-if [ $stage -le 6 ]; then
+if [ $stage -le 5 ]; then
   # echo "$0: computing a subset of data to train the diagonal UBM."
   # # We'll use about a quarter of the data.
   # mkdir -p exp/chain/diag_ubm_${affix}
@@ -115,15 +117,32 @@ if [ $stage -le 6 ]; then
     steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
       data/${datadir}_hires_nopitch_clean_plus_rir_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
   done
+
+  for datadir in ${test_sets}; do
+    steps/online/nnet2/copy_data_dir.sh --utts-per-spk-max 2 data/${datadir}_hires_nopitch data/${datadir}_hires_nopitch_max2
+    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
+      data/${datadir}_hires_nopitch_max2 exp/chain/extractor_${affix} exp/chain/ivectors_${datadir}_${affix} || exit 1;
+  done
+fi
+
+if [ $stage -le 6 ]; then
+  # re-train LDA+MLLT based on feats with no-feats
+  steps/train_lda_mllt.sh --cmd "$train_cmd" \
+    10000 80000 data/${train_set}_clean_plus_rir data/lang exp/tri2_ali exp/tri3_${affix} || exit 1;
+  #steps/align_si.sh ==cmd "$train_cmd" --nj $nj \
+   # data/${train_set}_clean_plus_rir data/lang exp/tri3_${affix} exp/tri3_ali_${affix}
 fi
 
 if [ $stage -le 7 ]; then
   # Get the alignments as lattices (gives the LF-MMI training more freedom).
   # use the same num-jobs as the alignments
   nj=$(cat $ali_dir/num_jobs) || exit 1;
+  [ -f data/${train_set}_hires_nopitch_clean_plus_rir/cmvn.scp ] || (steps/compute_cmvn_stats.sh data/${train_set}_hires_nopitch_clean_plus_rir || exit 1;)
+  #steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" data/${train_set}_hires_nopitch_clean_plus_rir \
+  #  data/lang exp/tri3 exp/tri3_${affix}
   steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" data/${train_set}_clean_plus_rir \
-    data/lang exp/tri3 exp/tri4_sp_lats
-  rm exp/tri4_sp_lats/fsts.*.gz # save space
+    data/lang exp/tri3_${affix} exp/tri4_sp_lats_${affix}
+  rm exp/tri4_sp_lats_${affix}/fsts.*.gz # save space
 fi
 
 if [ $stage -le 8 ]; then
@@ -231,7 +250,7 @@ if [ $stage -le 11 ]; then
     --cleanup.remove-egs $remove_egs \
     --feat-dir ${feat_dir} \
     --tree-dir $treedir \
-    --lat-dir exp/tri4_sp_lats \
+    --lat-dir exp/tri4_sp_lats_${affix} \
     --dir $dir  || exit 1;
 fi
 

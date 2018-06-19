@@ -6,7 +6,7 @@
 set -euxo pipefail
 
 # general options
-affix=nopitch
+affix=nopitch_hires
 stage=0
 frame_shift=0.01
 
@@ -15,7 +15,7 @@ nj=15
 
 . ./utils/parse_options.sh
 
-datadir=data/train_hires_${affix}
+datadir=$1
 
 # download rir directory
 if [ $stage -le 0 ] && [ ! -d "RIRS_NOISES" ]; then
@@ -26,7 +26,7 @@ fi
 # extract feature but with utt2num_frames
 if [ $stage -le 1 ]; then
   if [ ! -f $datadir/utt2num_frames ]; then
-    steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --nj $nj \
+   steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --nj $nj \
       $datadir exp/train_for_rir_pollution_${affix} exp/mfcc_for_rir_pollution_${affix} || exit 1;
     utils/fix_data_dir.sh $datadir || exit 1;
   else
