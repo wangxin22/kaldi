@@ -8,6 +8,17 @@
 # At this script level we don't support not running on GPU, as it would be painfully slow.
 # If you want to run without GPU you'd have to call train_tdnn.sh with --gpu false,
 # --num-threads 16 and --minibatch-size 128.
+<<<<<<< HEAD
+=======
+
+# results
+# local/nnet3/compare_wer.sh exp/nnet3/tdnn_sp/
+# Model                  tdnn_sp
+# WER(%)                    11.20
+# Final train prob        -0.9601
+# Final valid prob        -1.0819
+
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 set -e
 
 stage=0
@@ -125,4 +136,7 @@ fi
 wait;
 echo "local/nnet3/run_tdnn.sh succeeded"
 exit 0;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e

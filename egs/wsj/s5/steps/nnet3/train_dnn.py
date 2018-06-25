@@ -221,7 +221,12 @@ def train(args, run_opts):
     # we do this as it's a convenient way to get the stats for the 'lda-like'
     # transform.
 
+<<<<<<< HEAD
     if (args.stage <= -5) and os.path.exists(args.dir+"/configs/init.config") and (args.input_model is None):
+=======
+    if (args.stage <= -5) and os.path.exists(args.dir+"/configs/init.config") and \
+       (args.input_model is None):
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
         logger.info("Initializing a basic network for estimating "
                     "preconditioning matrix")
         common_lib.execute_command(

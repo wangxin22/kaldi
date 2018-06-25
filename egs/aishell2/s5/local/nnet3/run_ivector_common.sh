@@ -10,6 +10,8 @@ set -euo pipefail
 
 stage=0
 nj=30
+dev_nj=5
+eval_nj=10
 train_set=train
 test_sets="dev test"
 gmm=tri3
@@ -130,17 +132,17 @@ if [ $stage -le 6 ]; then
   # having a larger number of speakers is helpful for generalization, and to
   # handle per-utterance decoding well (iVector starts at zero).
   temp_data_root=${ivectordir}
-  utils/data/modify_speaker_info.sh --utts-per-spk-max 2 \
-    data/${train_set}_sp_hires ${temp_data_root}/${train_set}_sp_hires_max2
+  #utils/data/modify_speaker_info.sh --utts-per-spk-max 2 \
+  #  data/${train_set}_sp_hires ${temp_data_root}/${train_set}_sp_hires_max2
 
-  steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 20 \
-    ${temp_data_root}/${train_set}_sp_hires_max2 \
-    exp/nnet3${nnet3_affix}/extractor $ivectordir
+  #steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 20 \
+  #  ${temp_data_root}/${train_set}_sp_hires_max2 \
+  #  exp/nnet3${nnet3_affix}/extractor $ivectordir
 
   # Also extract iVectors for the test data, but in this case we don't need the speed
   # perturbation (sp).
   for data in $test_sets; do
-    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj 20 \
+    steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $dev_nj \
       data/${data}_hires exp/nnet3${nnet3_affix}/extractor \
       exp/nnet3${nnet3_affix}/ivectors_${data}_hires
   done

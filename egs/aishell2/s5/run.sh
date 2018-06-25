@@ -6,6 +6,7 @@
 
 # AISHELL-2 provides:
 #  * a Mandarin speech corpus (~1000hrs), free for non-commercial research/education use
+<<<<<<< HEAD
 #  * an industrial recipe setup for large scale Mandarin ASR system
 # For more details, read $KALDI_ROOT/egs/aishell2/README.txt
 
@@ -16,11 +17,29 @@ corpus=/efs/mlteam/xuechen/corpora/AISHELL-2/iOS/data
 nj=20
 stage=1
 gmm_stage=0
+=======
+#  * a baseline recipe setup for large scale Mandarin ASR system
+# For more details, read $KALDI_ROOT/egs/aishell2/README.txt
+
+# modify this to your AISHELL-2 training data path
+# e.g:
+# trn_set=/disk10/data/AISHELL-2/iOS/data
+# dev_set=/disk10/data/AISHELL-2/iOS/dev
+# tst_set=/disk10/data/AISHELL-2/iOS/test
+trn_set=
+dev_set=
+tst_set=
+
+nj=20
+stage=1
+gmm_stage=1
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 
 . ./cmd.sh
 . ./path.sh
 . ./utils/parse_options.sh
 
+<<<<<<< HEAD
 # we should probably move jieba(for word segmentation) into 
 # Kaldi's "tools" dir with Dan's approval
 # before you run the entire recipe, run the following command
@@ -29,10 +48,16 @@ gmm_stage=0
 # prepare data, lexicon, and lang etc
 if [ $stage -le 1 ]; then
 	local/prepare_all.sh $corpus || exit 1;
+=======
+# prepare trn/dev/tst data, lexicon, lang etc
+if [ $stage -le 1 ]; then
+  local/prepare_all.sh ${trn_set} ${dev_set} ${tst_set} || exit 1;
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 fi
 
 # GMM
 if [ $stage -le 2 ]; then
+<<<<<<< HEAD
 	local/run_gmm.sh --nj $nj --stage $gmm_stage
   echo "gmm complete" && exit 0;
 fi
@@ -45,6 +70,15 @@ fi
 # chain
 if [ $stage -le 4 ]; then
 	local/chain/run_tdnn.sh --nj $nj
+=======
+  local/run_gmm.sh --nj $nj --stage $gmm_stage
+fi
+
+# nnet3 & chain
+if [ $stage -le 3 ]; then
+  # local/nnet3/run_tdnn.sh --nj $nj
+  local/chain/run_tdnn.sh --nj $nj
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 fi
 
 local/show_results.sh

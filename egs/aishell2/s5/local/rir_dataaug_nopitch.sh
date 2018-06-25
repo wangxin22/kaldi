@@ -26,9 +26,10 @@ fi
 # extract feature but with utt2num_frames
 if [ $stage -le 1 ]; then
   if [ ! -f $datadir/utt2num_frames ]; then
-   steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --nj $nj \
-      $datadir exp/train_for_rir_pollution_${affix} exp/mfcc_for_rir_pollution_${affix} || exit 1;
-    utils/fix_data_dir.sh $datadir || exit 1;
+   #steps/make_mfcc.sh --write-utt2num-frames true --mfcc-config conf/mfcc_hires.conf --nj $nj \
+   #   $datadir exp/train_for_rir_pollution_${affix} exp/mfcc_for_rir_pollution_${affix} || exit 1;
+   [ ! -f $datadir/utt2num_frames ] && utils/data/get_utt2num_frames.sh $datadir || exit 1;
+   utils/fix_data_dir.sh $datadir || exit 1;
   else
     echo "utt2num_frames already exists. We won't re-compute it." 
  fi

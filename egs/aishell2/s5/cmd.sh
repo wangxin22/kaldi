@@ -13,8 +13,14 @@
 #export train_cmd="queue.pl --mem 2G"
 #export decode_cmd="queue.pl --mem 4G"
 #export mkgraph_cmd="queue.pl --mem 8G"
+<<<<<<< HEAD
 export train_cmd="run.pl --max-jobs-run 30"
 export decode_cmd="run.pl --max-jobs-run 30"
 export mkgraph_cmd="run.pl --max-jobs-run 30"
 
 export cuda_cmd="run.pl"
+=======
+export train_cmd="run.pl"
+export decode_cmd="run.pl"
+export mkgraph_cmd="run.pl"
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e

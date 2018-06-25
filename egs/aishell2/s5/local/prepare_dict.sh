@@ -11,8 +11,13 @@ download_dir=data/local/DaCiDian
 dir=data/local/dict
 
 if [ $# -ne 1 ]; then 
+<<<<<<< HEAD
 	echo "Usage: $0 <dict-dir>";
 	exit 1;
+=======
+  echo "Usage: $0 <dict-dir>";
+  exit 1;
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 fi
 
 dir=$1

@@ -3,6 +3,7 @@
 #           2018 Beijing Shell Shell Tech. Co. Ltd. (Author: Hui BU)
 # Apache 2.0
 
+<<<<<<< HEAD
 # To be run from one directory above this script.
 set -euxo pipefail
 . ./path.sh
@@ -23,6 +24,25 @@ done
 dir=data/local/lm
 mkdir -p $dir
 
+=======
+. ./path.sh
+. ./utils/parse_options.sh
+
+if [ $# -ne 3 ]; then
+  echo "train_lms.sh <lexicon> <word-segmented-text> <dir>"
+  echo " e.g train_lms.sh data/local/dict/lexicon.txt data/local/train/text data/local/lm"
+  exit 1;
+fi
+
+lexicon=$1
+text=$2
+dir=$3
+
+for f in "$text" "$lexicon"; do
+  [ ! -f $x ] && echo "$0: No such file $f" && exit 1;
+done
+
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 kaldi_lm=`which train_lm.sh`
 if [ -z $kaldi_lm ]; then
   echo "$0: train_lm.sh is not found. That might mean it's not installed"
@@ -31,11 +51,19 @@ if [ -z $kaldi_lm ]; then
   exit 1
 fi
 
+<<<<<<< HEAD
+=======
+mkdir -p $dir
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 cleantext=$dir/text.no_oov
 
 cat $text | awk -v lex=$lexicon 'BEGIN{while((getline<lex) >0){ seen[$1]=1; } }
   {for(n=1; n<=NF;n++) {  if (seen[$n]) { printf("%s ", $n); } else {printf("<UNK> ");} } printf("\n");}' \
+<<<<<<< HEAD
   > $cleantext
+=======
+  > $cleantext || exit 1;
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 
 cat $cleantext | awk '{for(n=2;n<=NF;n++) print $n; }' | sort | uniq -c | \
    sort -nr > $dir/word.counts || exit 1;
@@ -58,9 +86,12 @@ cat $cleantext | awk -v wmap=$dir/word_map 'BEGIN{while((getline<wmap)>0)map[$1]
 
 train_lm.sh --arpa --lmtype 3gram-mincount $dir || exit 1;
 
+<<<<<<< HEAD
 # LM is small enough that we don't need to prune it (only about 0.7M N-grams).
 # Perplexity over 128254.000000 words is 90.446690
 
+=======
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 # note: output is
 # data/local/lm/3gram-mincount/lm_unpruned.gz
 
@@ -92,5 +123,9 @@ ngram -lm $sdir/srilm.o3g.kn.gz -ppl $sdir/heldout
 ngram -lm $dir/3gram-mincount/lm_unpruned.gz  -ppl $sdir/heldout
 # 0 zeroprobs, logprob= -250913 ppl= 90.4439 ppl1= 132.379
 
+<<<<<<< HEAD
 echo "local/aishell_train_lms.sh succeeded"
+=======
+echo "local/train_lms.sh succeeded"
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 exit 0

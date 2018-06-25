@@ -1,6 +1,17 @@
 #!/bin/bash
 
 # This script is based on run_tdnn_7h.sh in swbd chain recipe.
+<<<<<<< HEAD
+=======
+# results
+# local/chain/compare_wer.sh exp/chain/tdnn_1a_sp/
+# Model                tdnn_1a_sp
+# WER(%)                     9.89
+# Final train prob        -0.0653
+# Final valid prob        -0.0765
+# Final train prob (xent)   -0.7340
+# Final valid prob (xent)   -0.8030
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 
 set -e
 
@@ -87,8 +98,13 @@ if [ $stage -le 9 ]; then
   # Build a tree using our new topology. This is the critically different
   # step compared with other recipes.
   steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
+<<<<<<< HEAD
     --context-opts "--context-width=2 --central-position=1" \
     --cmd "$train_cmd" 5000 data/$train_set $lang $ali_dir $treedir
+=======
+      --context-opts "--context-width=2 --central-position=1" \
+      --cmd "$train_cmd" 5000 data/$train_set $lang $ali_dir $treedir
+>>>>>>> 60141df48253b86258c8f3afe5b1468aa3b2b59e
 fi
 
 if [ $stage -le 10 ]; then
